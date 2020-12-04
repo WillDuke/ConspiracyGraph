@@ -1,0 +1,4 @@
+nodedef>name VARCHAR,label VARCHAR,isSeed VARCHAR,seedRank INT,publishedAt INT,channelTitle VARCHAR,channelId VARCHAR,videoCategoryLabel VARCHAR,viewCount INT,likeCount INT,dislikeCount INT,dislikeLikeRatio FLOAT,favoriteCount INT,commentCount INT
+bpxAIYrtGLw,How to Destroy the Climate Change Hoax,yes,1,1565659800,TFP Student Action,UCTamXcimfIHE7tMBzTRiFKw,Nonprofits & Activism,298093,15463,1253,0.08103214124038,0,4039,
+Y2ZsfFOnvOk,PROPHETIC RUMORS THAT ARE NOT TRUE | EPISODE 984,yes,2,1566220385,Perry Stone,UCHJ5B4pWmC7ULGYb1KI5Wjw,Nonprofits & Activism,97248,2445,88,0.0359918200409,0,290,
+edgedef>node1 VARCHAR,node2 VARCHAR,directed BOOLEAN
