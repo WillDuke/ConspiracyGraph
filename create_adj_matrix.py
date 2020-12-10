@@ -2,7 +2,7 @@ import json
 import numpy as np
 from math import log
 
-ADJ_MATRIX_DEST = 'data/adj_matrix.npy'
+ADJ_MATRIX_DEST = 'data/adj_matrix_half.npy'
 RAW_RELATED_IDS = 'data/related_ids.json'
 
 def score_ids(video_ids, related_ids):
@@ -25,7 +25,16 @@ def create_adjacency_matrix(related_dict):
     # list of arrays of scores for each video
     scores = [score_ids(all_ids, rel) for rel in related_dict.values()]
 
-    return np.vstack(scores)
+    # stack the scores into matrix
+    mat = np.vstack(scores)
+
+    # add transpose to make symmetric 
+    sym = np.add(mat, mat.T)
+
+    # set the diagonal (matching ids) to 2 (max score is ~1.44)
+    np.fill_diagonal(sym, 2)
+
+    return sym
 
 if __name__ == "__main__":
     
@@ -42,4 +51,3 @@ if __name__ == "__main__":
     # how to load
     # with open(ADJ_MATRIX_DEST, 'rb') as f:
     #   mat = np.load(f)
-

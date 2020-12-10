@@ -138,14 +138,6 @@ if __name__ == "__main__":
     
     driver = init_webdriver()
 
-    try:
-        all_related = get_all_related(ids, driver)
-
-    except Exception as e:
-        print('Gathering of related IDs failed.')
-        print(f"Exception details: {e}")
-    
-    with open(RAW_RELATED_IDS, 'w') as file:
-        json.dump(CACHE, file) 
+    all_related = get_all_related(ids, driver)
 
 # test_ids = ["1WlMxRuVbFY", "xHcPhdZBngw"]
