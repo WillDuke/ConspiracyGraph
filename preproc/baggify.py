@@ -73,29 +73,49 @@ def tag_cleanup(dict_list) :
         tag_features.append(x)
     return tag_features
 
-def extract_features(data_dict) : 
+def extract_features(data_dict, ids) : 
+    '''
+    UPDATE: 12/11 
+    Features are the video title, description, and comments
+    Tags will be returned for use in building edges
+    '''
+
     # Going to keep a separate corpus for 
     # the title, the description, and the tags
-    title_bag = baggify(list(data_dict['title'].values()))
-    tag_bag = baggify(tag_cleanup(data_dict['tags'].values())) # is the tag bag a concern? '|' instead of spaces
-    des_bag = baggify(list(data_dict['description'].values()))
+    title_bag = baggify([data_dict['title'][i] for i in ids])
+    tag_bag = baggify(tag_cleanup([data_dict['tags'][i] for i in ids])) # is the tag bag a concern? '|' instead of spaces
+    des_bag = baggify([data_dict['description'][i] for i in ids])
+    com_bag = 0 # waiting for comments data
 
     # Merge those sparse matrices, return the features
-    features = scipy.sparse.hstack([scipy.sparse.hstack([title_bag,tag_bag]), des_bag]) 
+    features = scipy.sparse.hstack([scipy.sparse.hstack([title_bag,des_bag]), com_bag]) 
 
-    return features
+    return features, tag_bag
+
+
+# A little extraneous but pulls scores via id
+def save_valid_scores(data_dict, ids) : 
+    scores = [data_dict['conspiracy_likelihood'][i] for i in ids]
+    with open("../data/valid_scores.npy", "wb") as file : 
+        np.save(file, np.asarray(scores))
+    return 
 
 if __name__ == '__main__':
     data_dict = load_json() 
     # peek(data_dict)
 
-    # grab the features
-    sparse_words = extract_features(data_dict)
     # grab the IDs
-    ids = np.asarray(list(data_dict['title'].keys()))
+    ids = np.loadtxt('valid_ids.txt', delimiter=',')
+
+    # grab the features
+    sparse_words, tag_bag = extract_features(data_dict, ids)
+    
     # save 'em
     with open("../data/bag_ids.npy", "wb") as file : 
         np.save(file, ids)
     with open("../data/bag_features.npz", "wb") as file : 
         scipy.sparse.save_npz(file, sparse_words) 
-    
+    with open("../data/bag_tags.npy", "wb") as file : 
+        np.save(file, tag_bag)
+
+    save_valid_scores() 
