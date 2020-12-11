@@ -9,9 +9,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-RAW_RELATED_IDS = './data/related_ids.json'
-SOURCE_IDS_PATH = './data/valid_ids.txt'
-CACHE = './data/cache.txt'
+RAW_RELATED_IDS = '../data/related_ids.json'
+SOURCE_IDS_PATH = '../data/valid_ids.txt'
+CACHE = '../data/cache.txt'
 
 def init_webdriver(PATH = '/Users/Will/chromedriver'):
     options = Options()
@@ -21,7 +21,7 @@ def init_webdriver(PATH = '/Users/Will/chromedriver'):
     
     return driver
     
-def get_related_ids(video_id, driver):
+def get_related_ids(video_id, driver, cache):
 
     wait = WebDriverWait(driver, 10)
     presence = EC.presence_of_element_located
@@ -82,7 +82,7 @@ def get_related_ids(video_id, driver):
 
     related_ids = [link.split("=")[1] for link in related_links]
 
-    with open(CACHE, 'a+') as f:
+    with open(cache, 'a+') as f:
         f.write(f"{video_id}: {related_ids}\n")
 
     print(f'Found {len(related_ids)} related videos for {video_id}.')
@@ -104,20 +104,22 @@ def get_new_tab(driver):
     driver.switch_to.window(driver.window_handles[0])
     sleep(1)
 
-def get_all_related(video_ids, driver):
-    """Get all of the related ids, dumping to a json cache if there is an API error."""
-
+def get_all_related(video_ids, driver, cache):
+    """Get all of the related ids, saving to a cache at each iteration."""
+    related_ids = {}
     for id in tqdm(video_ids):
         # get related video ids
         get_new_tab(driver)
 
         try:
-            get_related_ids(id, driver)
+            related_ids[id] = get_related_ids(id, driver, cache)
         except:
             print(f'Failed to get related videos for {id}')
             continue
 
     driver.quit()
+
+    return related_ids
 
 if __name__ == "__main__":
 
@@ -133,4 +135,7 @@ if __name__ == "__main__":
     
     driver = init_webdriver()
 
-    all_related = get_all_related(ids, driver)
+    all_related = get_all_related(ids, driver, CACHE)
+
+    with open(RAW_RELATED_IDS) as f:
+        json.dump(all_related, f)
