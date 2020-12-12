@@ -2,8 +2,8 @@ import json
 import numpy as np
 from math import log
 
-ADJ_MATRIX_DEST = './data/adj_matrix.npz'
-RAW_RELATED_IDS = './data/related_ids.json'
+ADJ_MATRIX_DEST = '../data/adj_matrix.npz'
+RAW_RELATED_IDS = '../data/related_ids.json'
 
 def score_ids(video_ids, related_ids):
     """Score each video based on its position in related_ids"""
