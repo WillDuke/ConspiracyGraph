@@ -1,9 +1,10 @@
 import numpy as np 
 import scipy.sparse
-
+from scipy.sparse import find
+import tqdm
 
 ADJ_PATH = "../data/adj_matrix.npz" 
-TAG_PATH = "../data/bag_tags.npy"
+TAG_PATH = "../data/bag_tags.npz"
 NEW_ADJ_PATH = "../data/boosted_adj_matrix.npy"
 
 def load_old_adj() : 
@@ -12,8 +13,10 @@ def load_old_adj() :
     return adj
 
 def load_tags() : 
-    # np array len(ids) x len(corpus)
-    tags = np.load(TAG_PATH, allow_pickle=True)
+    # sparse array len(ids) x len(corpus)
+    # tags = np.load(TAG_PATH, allow_pickle=True)
+    tags = scipy.sparse.load_npz(TAG_PATH)
+    # print("Tags?", tags)
     return tags
 
 # Take a look at our adjacency matrix
@@ -45,18 +48,28 @@ def boost_adj() :
     new_adj = load_old_adj() 
 
     # load the tag features (should be already ordered same as adj) 
-    tag_feats = load_tags() 
-
+    tag_feats = load_tags()
+    # print(tag_feats)
     # simple naive range through to add small edges
     # fine with the duplicated passes to keep matrix symmetric 
-    num_vids = len(tag_feats)
-    for i in range(num_vids) : 
+    num_vids = tag_feats.shape[0]
+    for i in tqdm.tqdm(range(num_vids)) : 
         # grab encoding for this video 
         my_tags = tag_feats[i] 
         # for each other video, add edges when tags match
         for j in range(num_vids) :  
             # formula: log(#matching tags) 
-            new_adj[i][j] += np.log((my_tags == tag_feats[j]).sum())
+            # Very slow to use == comparisons for sparse
+            # instead use find() or .nonzero() to pull values
+            r1,c1 = my_tags.nonzero() 
+            r2,c2 = tag_feats[j].nonzero()
+            my_spots = np.stack((r1, c1), axis=-1)
+            their_spots = np.stack((r2, c2), axis=-1)
+            matches = 1 # start with 1 to make log happy
+            for spot in my_spots : 
+                if spot in their_spots : 
+                    matches += 1
+            new_adj[i][j] += 0.1 * np.log(matches)
 
     # what have you done??
     peek_adj(new_adj) 
@@ -69,3 +82,4 @@ def boost_adj() :
 if __name__ == '__main__':
     # Boost the adjacency matrix edges with tag features
     # peek_adj(load_old_adj())
+    boost_adj()
