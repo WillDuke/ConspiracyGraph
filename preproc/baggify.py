@@ -14,7 +14,7 @@ def load_json(path) :
 # Flag-ship function here
 def baggify(feature_list) : 
     # The feature_list is a corpus- a list of strings, each string being a "document"/sample
-    vectorizer = CountVectorizer()
+    vectorizer = CountVectorizer(stop_words='english')
     X = vectorizer.fit_transform(feature_list) 
     return X 
 
@@ -70,6 +70,26 @@ def save_valid_scores(data_dict, ids) :
     scores = [data_dict['conspiracy_likelihood'][i] for i in ids]
     with open("../data/valid_scores.npy", "wb") as file : 
         np.save(file, np.asarray(scores))
+    return 
+
+# Make sure tags are working properly
+def check_tag_corpus() :
+    '''
+    No broken issues with tags, top 20 (not in order) : 
+    ['aliens', 'ancient', 'bible', 'conspiracy', 'earth', 'end', 'history', 
+    'jesus', 'news', 'of', 'on', 'prophecy', 'roth', 'sid', 'supernatural', 
+    'the', 'times', 'trump', 'ufo', 'world']
+    Top word: 'the' appearing in over 20% of video tags
+    Added 'the', 'of', and 'on' to stop words list
+    '''
+    data_dict = load_json(RAW_DATA_PATH)
+    ids = np.loadtxt('../data/valid_ids.txt', delimiter=', ', dtype=str)
+    clean_tags = tag_cleanup([data_dict['tags'][i] for i in ids])
+    vectorizer = CountVectorizer(max_features=25, stop_words='english')
+    X = vectorizer.fit_transform(clean_tags)
+    print(vectorizer.get_feature_names())
+    # analyze = vectorizer.build_analyzer(max_features=20)
+    # print(analyze(' '.join(clean_tags)))  
     return 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import tqdm
 
 ADJ_PATH = "../data/adj_matrix.npz" 
 TAG_PATH = "../data/bag_tags.npz"
-NEW_ADJ_PATH = "../data/boosted_adj_matrix.npy"
+NEW_ADJ_PATH = "../data/boosted_adj_matrix.npz"
 
 def load_old_adj() : 
     # npz file, no name assigned to np array so use key 'arr_0'
@@ -21,9 +21,6 @@ def load_tags() :
 
 # Take a look at our adjacency matrix
 def peek_adj(test) : 
-    # test = scipy.sparse.load_npz(ADJ_PATH).toarray()
-    # test = load_old_adj() 
-
     print(test)
     print(test.size) 
     edge_weights = [] 
@@ -49,37 +46,39 @@ def boost_adj() :
 
     # load the tag features (should be already ordered same as adj) 
     tag_feats = load_tags()
-    # print(tag_feats)
     # simple naive range through to add small edges
     # fine with the duplicated passes to keep matrix symmetric 
     num_vids = tag_feats.shape[0]
-    for i in tqdm.tqdm(range(num_vids)) : 
+    for i in tqdm.tqdm(range(num_vids-1)) : 
         # grab encoding for this video 
         my_tags = tag_feats[i] 
         # for each other video, add edges when tags match
-        for j in range(num_vids) :  
+        for j in range(i+1, num_vids) :  
             # formula: log(#matching tags) 
             # Very slow to use == comparisons for sparse
             # instead use find() or .nonzero() to pull values
-            r1,c1 = my_tags.nonzero() 
-            r2,c2 = tag_feats[j].nonzero()
-            my_spots = np.stack((r1, c1), axis=-1)
-            their_spots = np.stack((r2, c2), axis=-1)
-            matches = 1 # start with 1 to make log happy
-            for spot in my_spots : 
-                if spot in their_spots : 
-                    matches += 1
-            new_adj[i][j] += 0.1 * np.log(matches)
+            _, my_spots = my_tags.nonzero()
+            _, their_spots = tag_feats[j].nonzero()
+            matches = 0.1 * np.log(len(np.intersect1d(my_spots, their_spots, assume_unique=True)) + 1)
+            new_adj[i][j] = matches
+            new_adj[j][i] = matches
 
     # what have you done??
     peek_adj(new_adj) 
 
     with open(NEW_ADJ_PATH, "wb") as file : 
-        np.save(file, new_adj)
+        np.savez_compressed(file, new_adj)
 
+    return 
+
+def compress_boost_adj() : 
+    OLD_BOOST = "../data/boosted_adj_matrix.npy"
+    adj = np.load(OLD_BOOST, allow_pickle=True)
+    np.savez_compressed(NEW_ADJ_PATH)
     return 
 
 if __name__ == '__main__':
     # Boost the adjacency matrix edges with tag features
     # peek_adj(load_old_adj())
     boost_adj()
+    # compress_boost_adj()
