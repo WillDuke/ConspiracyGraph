@@ -74,7 +74,8 @@ def boost_adj() :
 def compress_boost_adj() : 
     OLD_BOOST = "../data/boosted_adj_matrix.npy"
     adj = np.load(OLD_BOOST, allow_pickle=True)
-    np.savez_compressed(NEW_ADJ_PATH)
+    with open(NEW_ADJ_PATH, "wb") as file : 
+        np.savez_compressed(file, adj)
     return 
 
 if __name__ == '__main__':

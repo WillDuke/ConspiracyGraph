@@ -91,3 +91,4 @@ def graphTest() :
 
 if __name__ == '__main__':
 	# peek_adj()
+    graphTest()
