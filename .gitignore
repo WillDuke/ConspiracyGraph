@@ -2,3 +2,4 @@ __pycache__
 .vscode
 yt_api_query/my_api_key.py
 yt_api_query/__pycache__
+data/boosted_adj_matrix.npy
