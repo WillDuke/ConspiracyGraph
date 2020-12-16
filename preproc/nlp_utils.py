@@ -29,6 +29,18 @@ class ConspiracyDataLoader():
 
         return valid_ids, video_info, comments
     
+    def tag_parser(self, tags):
+        """Handle the nonstandard tags."""
+        
+        if tags is None:
+            return []
+
+        elif type(tags) is list:
+            return tags
+
+        elif type(tags) is str:
+            return tags.split('|')
+        
     def combine(self):
 
         valid_ids, video_info, comments = self.load_data()
@@ -38,24 +50,24 @@ class ConspiracyDataLoader():
 
         combined = {}
         for vid in valid_ids:
+            tags = video_info['tags'][vid]
             combined[vid] = {
                 'title': video_info['title'][vid],
                 'description': video_info['description'][vid],
-                'tags': video_info['tags'][vid],
+                'tags': self.tag_parser(tags),
                 'comments': [info['text'] for info in comments[vid]]
             }
 
         return combined
 
-    # def fit(self, X, y = None):
+    def fit(self, X, y = None):
 
-    #     self.data = self.combine()
-    #     return self
+        self.data = self.combine()
+        return self
     
-    # def transform(self):
+    def transform(self, X):
 
-    #     for key, data in self.data:
-    #         yield key, data
+        return self
 
     def __iter__(self):
 
@@ -77,8 +89,6 @@ class DescriptionExtractor(BaseEstimator, TransformerMixin):
     def transform(self, dataloader):
         for _, data in dataloader:
             yield data['description']
-        # print('Extracting descriptions...')
-        # return [data['description'] for _, data in dataloader]
 
 class TagsExtractor(BaseEstimator, TransformerMixin):
     def fit(self, X, y = None):
@@ -86,7 +96,7 @@ class TagsExtractor(BaseEstimator, TransformerMixin):
 
     def transform(self, dataloader):
         for _, data in dataloader:
-            yield data['tags']
+            yield " ".join(data['tags'])
 
 class CommentsExtractor(BaseEstimator, TransformerMixin):
     def fit(self, X, y = None):
@@ -141,7 +151,12 @@ class Doc2VecModel():
             for idx, words in enumerate(comments)
         ]
 
-        model = Doc2Vec(corpus, size = 100, min_count = 3)
+        model = Doc2Vec(vector_size=300, window=10, min_count=3, 
+                    workers=4, epochs = 40)
+        model.build_vocab(corpus)
+        model.train(corpus, 
+                    total_examples=model.corpus_count, 
+                    epochs=model.epochs)
 
         print('Doc2Vec vector conversion complete.')
         return np.array(model.docvecs.doctag_syn0)
