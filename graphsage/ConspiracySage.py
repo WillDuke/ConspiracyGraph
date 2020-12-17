@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 from torch_geometric.nn import SAGEConv
-import torch_geometric.data as torchData
+
 
 import numpy as np
 import time
@@ -36,20 +36,24 @@ class GraphSAGE(nn.Module) :
 def graphTest() : 
     # pytorch geometric data object, has attributes x, edge_index, and y
     data = load_YouTube() 
+    num_samples = data.x.shape[0]
+    num_feats = data.x.shape[1]
+    # Uh oh
+    print(num_feats)
 
-    rand_indices = np.random.permutation(x.shape[0])
-    split = int(x.shape[0]*0.75)
+    rand_indices = np.random.permutation(num_samples)
+    split = int(num_samples*0.75)
     data.test_mask = torch.tensor(rand_indices[split:], dtype=torch.long)
-    rand_indices = np.random.randint(0,x.shape[0],500)
+    rand_indices = np.random.randint(0,num_samples,128)
     data.train_mask = torch.tensor(rand_indices, dtype=torch.long)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_classes = 4
-    model = GraphSAGE(x.shape[1], num_classes).to(device)
+    model = GraphSAGE(num_feats, num_classes).to(device)
 
     lr = 0.01
     weight_decay = 5e-4
-    num_epochs = 25
+    num_epochs = 5
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
 
     model.train()
@@ -58,20 +62,23 @@ def graphTest() :
         print("Model Parameters: {} {}".format(lr, weight_decay), file=text_file)
         print("Trial Run", file=text_file)
         for epoch in tqdm.tqdm(range(num_epochs)):
-            rand_indices = np.random.randint(0,x.shape[0],500)
+            rand_indices = np.random.randint(0,num_samples,128)
             data.train_mask = torch.tensor(rand_indices, dtype=torch.long)
             optimizer.zero_grad()
+            print("To...")
             out = model(data.x, data.edge_index)
 
-            if epoch % 10 == 0 : 
+            if epoch % 1 == 0 : 
                 _, pred = out.max(dim=1)
                 correct = int(pred[data.test_mask].eq(data.y[data.test_mask]).sum().item())
                 acc = correct / int(len(data.test_mask)) # int(data.test_mask.sum())
                 print('Epoch: {0}, Accuracy: {1:.4f}'.format(epoch, acc), file=text_file)
             
+            print("...and fro")
             loss = model.loss(out[data.train_mask], data.y[data.train_mask])
             loss.backward()
             optimizer.step()
+
 
         model.eval()
         _, pred = model(data.x, data.edge_index).max(dim=1)

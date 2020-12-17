@@ -10,6 +10,8 @@ NEW_ADJ_PATH = "../data/boosted_adj_matrix.npz"
 def load_old_adj() : 
     # npz file, no name assigned to np array so use key 'arr_0'
     adj = np.load(ADJ_PATH, allow_pickle=True)['arr_0']
+    print("Looking at old...")
+    peek_adj(adj)
     return adj
 
 def load_tags() : 
@@ -60,10 +62,11 @@ def boost_adj() :
             _, my_spots = my_tags.nonzero()
             _, their_spots = tag_feats[j].nonzero()
             matches = 0.1 * np.log(len(np.intersect1d(my_spots, their_spots, assume_unique=True)) + 1)
-            new_adj[i][j] = matches
-            new_adj[j][i] = matches
+            new_adj[i][j] += matches
+            new_adj[j][i] += matches
 
     # what have you done??
+    print("looking at new")
     peek_adj(new_adj) 
 
     with open(NEW_ADJ_PATH, "wb") as file : 

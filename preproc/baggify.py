@@ -14,7 +14,14 @@ def load_json(path) :
 # Flag-ship function here
 def baggify(feature_list) : 
     # The feature_list is a corpus- a list of strings, each string being a "document"/sample
-    vectorizer = CountVectorizer(stop_words='english')
+    # want informative features, so word must appear in at least 10 videos
+    # what percent of videos is 10 videos? 
+    min_percent = 10 / len(feature_list)
+    # Since our class sizes are about 1,000, we don't want overly common words
+    # Already have stop_words, will also use max_df for more than 1000 videos
+    max_feats = 1_000 # 1000 / len(feature_list)
+
+    vectorizer = CountVectorizer(stop_words='english', max_features=max_feats, min_df=min_percent)
     X = vectorizer.fit_transform(feature_list) 
     return X 
 
@@ -52,16 +59,27 @@ def extract_features(data_dict, ids) :
 
     # Going to keep a separate corpus for 
     # the title, the description, and the tags
-    title_bag = baggify([data_dict['title'][i] for i in ids])
+    # title_bag = baggify([data_dict['title'][i] for i in ids])
     tag_bag = baggify(tag_cleanup([data_dict['tags'][i] for i in ids])) # is the tag bag a concern? '|' instead of spaces
-    des_bag = baggify([data_dict['description'][i] for i in ids])
+    # des_bag = baggify([data_dict['description'][i] for i in ids])
 
     com_dict = load_json(COM_PATH) 
-    com_bag = baggify(com_cleanup([com_dict[i] for i in ids])) # 0 # waiting for comments data
+    # com_bag = baggify(com_cleanup([com_dict[i] for i in ids])) # 0 # waiting for comments data
 
+    # Try a single corpus : 
+    merged_corp = []
+    clean_com = com_cleanup([com_dict[i] for i in ids])
+    for idx, i in enumerate(ids) : 
+        # print([data_dict['title'][i], data_dict['description'][i], com_dict[i]])
+        video_all = ' '.join([data_dict['title'][i], data_dict['description'][i], clean_com[idx]])
+        merged_corp.append(video_all)
+
+    # print("MERGED: ", merged_corp[:5])
+    merged_bag = baggify(merged_corp)
+    # print(merged_bag)
     # Merge those sparse matrices, return the features
-    features = scipy.sparse.hstack([scipy.sparse.hstack([title_bag,des_bag]), com_bag]) 
-
+    # features = scipy.sparse.hstack([scipy.sparse.hstack([title_bag,des_bag]), com_bag]) 
+    features = merged_bag
     return features, tag_bag
 
 
@@ -101,7 +119,8 @@ if __name__ == '__main__':
 
     # grab the features
     sparse_words, tag_bag = extract_features(data_dict, ids)
-    
+    # print("We made {} features for {} samples!".format(sparse_words.shape[0], sparse_words.shape[1]))
+
     # save 'em
     with open("../data/bag_ids.npy", "wb") as file : 
         np.save(file, ids)
