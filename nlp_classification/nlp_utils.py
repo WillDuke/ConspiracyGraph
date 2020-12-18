@@ -2,6 +2,8 @@ import json
 import pickle
 import nltk
 import unicodedata
+import inflect
+import contractions
 from nltk.cluster.kmeans import KMeansClusterer
 import numpy as np
 import re
@@ -93,6 +95,13 @@ class ConspiracyDataPreparer():
         else:
             print('You must run combine() before normalizing the comments.')
     
+    def normalize_descriptions(self):
+
+        normalizer = TextNormalizer()
+        if self.data:
+            for dct in tqdm(self.data):
+                dct['description'] = normalizer.normalize(dct['description'])
+
     def save(self, path):
 
         with open(path, 'wb') as f:
@@ -111,7 +120,7 @@ class ConspiracyLoader():
         if data:
             self.data = data
         else:
-            with open('../data/training_preproc_data.pkl', 'rb') as f:
+            with open('../data/prenorm_training_data.json', 'rb') as f:
                 self.data = pickle.load(f)
         
         # scores = np.load("../data/valid_scores.npy")
@@ -127,19 +136,19 @@ class ConspiracyLoader():
         self.labels = np.array([1 if x == 1 else 0 for x in self.labels])
         self.folds = KFold(n_splits = folds, shuffle = shuffle)
     
-    def discretize_scores(self, scores):
-        """Noah's function for grouping the conspiracy scores."""
-        def score_classes(score) : 
-            if float(score) < 0.65 : 
-                return 0
-            elif float(score) < 0.80 : 
-                return 1
-            elif float(score) < 0.90 : 
-                return 2
-            else : 
-                return 3
+    # def discretize_scores(self, scores):
+    #     """Noah's function for grouping the conspiracy scores."""
+    #     def score_classes(score) : 
+    #         if float(score) < 0.65 : 
+    #             return 0
+    #         elif float(score) < 0.80 : 
+    #             return 1
+    #         elif float(score) < 0.90 : 
+    #             return 2
+    #         else : 
+    #             return 3
         
-        return np.asarray([score_classes(s) for s in scores])
+    #     return np.asarray([score_classes(s) for s in scores])
     
     def __iter__(self):
 
@@ -190,7 +199,7 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
 
         return self.lemmatizer.lemmatize(token, tag)
 
-    def remove_punctuation(words):
+    def remove_punctuation(self, words):
         """Remove punctuation from list of tokenized words"""
         new_words = []
         for word in words:
@@ -199,7 +208,7 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
                 new_words.append(new_word)
         return new_words
 
-    def replace_numbers(words):
+    def replace_numbers(self, words):
         """Replace all interger occurrences in list of tokenized words with textual representation"""
         p = inflect.engine()
         new_words = []
@@ -211,6 +220,10 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
                 new_words.append(word)
         return new_words
     
+    def replace_contractions(self, text):
+        """Replace contractions in string of text"""
+        return contractions.fix(text)
+    
     def pre_clean(self, text):
 
         # remove newlines
@@ -218,11 +231,23 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
         # normalize spaces
         text = re.sub(' +', ' ', text)
         # remove urls
-        return re.sub(r'http\S+', '', text)
+        text = re.sub(r"http\S+", "", text)
+
+        # replace contractions
+        text = self.replace_contractions(text)
+
+        return text
 
     def normalize(self, text):
+
+        text = self.pre_clean(text)
+        tokens = nltk.word_tokenize(text)
+
+        tokens = self.remove_punctuation(tokens)
+        tokens = self.replace_numbers(tokens)
+       
         return [self.lemmatize(token, tag).lower()
-                for (token, tag) in nltk.pos_tag(nltk.word_tokenize(text))
+                for (token, tag) in nltk.pos_tag(tokens)
                 if not self.is_punct(token) and not self.is_stopword(token) and len(token) > 2]
     
     def fit(self, X, y = None):
@@ -267,14 +292,24 @@ def create_pipeline(estimator = None, lsa = False, prenormalized = False):
                 ('comments', Pipeline([
                     ('comments_extractor', EntityExtractor('comments')),
                     ('normalize', TextNormalizer(passthrough=prenormalized)),
+                    # ('desc_vect1', TfidfVectorizer(
+                    #     ngram_range = (1,2),
+                    #     preprocessor = None,
+                    #     tokenizer = lambda x:x,
+                    #     lowercase = False
+                    # ))
                     ('Doc2vec', Doc2VecModel())
                 ])),
                 ('descriptions', Pipeline([
                     ('descript_extractor', EntityExtractor('description')),
-                    ('desc_vect', TfidfVectorizer(
-                        ngram_range = (1,2),
-                        stop_words=stopwords.words('english')
+                    ('normalize2', TextNormalizer(passthrough=prenormalized)),
+                    ('desc_vect2', TfidfVectorizer(
+                        preprocessor = None,
+                        tokenizer = lambda x:x,
+                        lowercase = False
                     ))
+                    # ('normalize2', TextNormalizer(passthrough=prenormalized)),
+                    # ('Doc2vec2', Doc2VecModel())
                 ])),
                 ('tags', Pipeline([
                     ('tags_extractor', EntityExtractor('tags')), 
@@ -291,9 +326,9 @@ def create_pipeline(estimator = None, lsa = False, prenormalized = False):
                 ]))
             ],
             transformer_weights = {
-                'comments': 0.3,
-                'descriptions': 0.3,
-                'tags': 0.2,
+                'comments': 0.5,
+                'descriptions': 0.2,
+                'tags': 0.1,
                 'titles': 0.2
             }
         ))

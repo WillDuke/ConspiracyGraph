@@ -1,4 +1,5 @@
 import tabulate
+import pickle
 import numpy as np
 import pandas as pd
 from collections import defaultdict
@@ -33,11 +34,13 @@ training_data = ConspiracyDataPreparer(
 training_data.combine()
 # training_data.save(SAVE_PATH)
 
-# pre-tokenize the comments to save time with models
+# pre-tokenize the comments and descriptions to save time with models
 training_data.normalize_comments()
+training_data.normalize_descriptions()
 
+training_data.save('../data/prenorm_training_data.json')
 # load the data directly from the data preparer
-dataloader = ConspiracyLoader(data = training_data.data)
+dataloader = ConspiracyLoader()
 
 # create a list of models
 models = []
@@ -45,7 +48,7 @@ for form in (LogisticRegression, SGDClassifier, MLPClassifier, LinearSVC):
     models.append(create_pipeline(form(), lsa = True, prenormalized = True))
     models.append(create_pipeline(form(), lsa = False, prenormalized = True))
 
-names = ['LogisticRegression', 'SGDClassifier', 'MLPClassifier']
+names = ['LogisticRegression', 'SGDClassifier', 'MLPClassifier', 'LinearSVC']
 fields = ['model', 'precision', 'recall', 'accuracy', 'f1']
 table = []
 
@@ -60,7 +63,7 @@ for idx, model in enumerate(models):
         scores['recall'].append(recall_score(y_test, y_pred, average = 'weighted'))
         scores['accuracy'].append(accuracy_score(y_test, y_pred))
         scores['f1'].append(f1_score(y_test, y_pred, average = 'weighted'))
-        print(f"Model {idx + 1} of 6: Completed {idx2 + 1} of 5 iterations.")
+        print(f"Model {idx + 1} of 8: Completed {idx2 + 1} of 5 iterations.")
     # add to table
     withSVD = " with TrSVD" if model.named_steps.get('lsa') else ""
     row = [str(model.named_steps['classifier']) + withSVD]
@@ -77,4 +80,13 @@ table_df = pd.DataFrame(table, columns = fields)
 table_df.to_csv('../data/class_model_chart.csv')
 
 #trying with svc
-model2 = [create_pipeline(LinearSVC(), lsa = True, prenormalized = True)]
+model2 = [create_pipeline(MLPClassifier(), lsa = False, prenormalized = True)]
+
+# create a new feature space
+with open('../data/prenorm_training_data.json', 'rb') as f:
+    alldata = pickle.load(f)
+pipe = create_pipeline(prenormalized = True)
+features = pipe.fit_transform(alldata)
+
+with open('../data/training_set_features.pkl', 'wb') as f:
+    pickle.dump(features, f)
