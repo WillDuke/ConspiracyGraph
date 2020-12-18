@@ -82,28 +82,22 @@ def get_comments(video_id, api, max_results = 100, max_requests = 1):
                     textFormat="plainText",
                     videoId= video_id,
                     pageToken = nextPageToken,
-                    maxResults = 100
+                    maxResults = max_results
                 )
         
         response = None
-        failed = True
-        attempts = 0
         
-        while failed:
-            # request api for page of max 50 results
-            try:
-                response = request.execute()
-                failed = False
+        # request api for page of max 100 results
+        try:
+            response = request.execute()
 
-            except HttpError as error:
-                if error.args[0].status == 404:
-                    raise ValueError(f'Comments were disabled for {video_id}')
-                # raise error if fails 3 times
-                elif attempts >= 2:
-                    raise PermissionError('API likely reached quota.')
-
-                sleep(3)
-                attempts += 1
+        except HttpError as error:
+            if error.args[0].status == 403:
+                raise ValueError(f'Comments were disabled for {video_id}')
+            else:
+                print(error)
+            
+            break
 
         # record time of query, parse and add to comments
         query_date = str(datetime.now())
@@ -121,7 +115,7 @@ def get_comments(video_id, api, max_results = 100, max_requests = 1):
 
     return comments
 
-def get_all_comments(video_ids, api, max_results = 50, max_requests = 1):
+def get_all_comments(video_ids, api, max_results = 100, max_requests = 1, cache = None):
     """Get all comments for a list of video ids, writing to a cache after each request."""
     
     all_comments = {}
@@ -139,8 +133,9 @@ def get_all_comments(video_ids, api, max_results = 50, max_requests = 1):
             print(f'Comments were disabled for {id}')
             comments = []
 
-        with open(CACHE_LOCATION, 'a+') as f:
-            f.write(f"{id}: {comments}\n")
+        if cache:
+            with open(cache, 'a+') as f:
+                f.write(f"{id}: {comments}\n")
     
         all_comments[id] = comments
 
@@ -159,7 +154,7 @@ if __name__ == "__main__":
         ids = file.readlines()[0].split(', ')
 
     # get all comments from videos in id list
-    all_related = get_all_comments(ids, youtube)
+    all_related = get_all_comments(ids, youtube, cache = CACHE_LOCATION)
 
     with open(RAW_COMMENTS, 'w') as f:
         json.dump(all_related, f)
